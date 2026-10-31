@@ -192,10 +192,31 @@ The transaction processing delay was also verified at approximately 30 seconds.
 
 ## Deployment Notes
 
-- Backend API and background worker run together in one Render web service to avoid the additional cost of a separate background worker.
-- Supabase PostgreSQL provides persistent transaction storage.
-- The Render free service can sleep after inactivity. While the service is asleep, the background worker is also paused.
-- The frontend currently runs locally and requires a production deployment and production API configuration.
+### Live Frontend
+
+The React dashboard is publicly deployed on Netlify.
+
+Frontend: https://charming-croissant-81754d.netlify.app/
+
+### Live Backend
+
+The FastAPI backend and background worker are deployed together on Render.
+
+API: https://confluencr-transaction-api.onrender.com/
+
+API Documentation: https://confluencr-transaction-api.onrender.com/docs
+
+### Database
+
+Supabase PostgreSQL provides persistent transaction storage.
+
+### Deployment Considerations
+
+- Netlify hosts the React frontend.
+- Render hosts the FastAPI backend and background worker.
+- Supabase provides PostgreSQL database storage.
+- The Render free service may sleep after inactivity. Cold starts can increase API response time.
+- The background worker runs alongside the API and pauses when the Render service sleeps.
 
 ## Project Repository
 
@@ -212,8 +233,10 @@ GitHub: https://github.com/bharathkumar35/confluencr-transaction-webhook
 - [x] Backend cloud deployment
 - [x] Live transaction processing verification
 - [x] React dashboard implementation
-- [x] Frontend integration with local backend
+- [x] Frontend integration with backend
 - [x] Transaction history retrieval
-- [ ] Push the latest frontend and backend changes to GitHub
-- [ ] Deploy the frontend
-- [ ] Configure production frontend-to-backend integration
+- [x] Processed transaction value calculation
+- [x] Frontend production deployment
+- [x] Public frontend access
+- [x] Production frontend-to-backend integration
+- [x] GitHub repository updated
