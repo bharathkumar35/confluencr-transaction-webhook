@@ -1,18 +1,19 @@
 # Transaction Webhook Service
 
-A transaction webhook processing system built with **FastAPI, PostgreSQL, SQLAlchemy, Docker, and React**.
+A full-stack transaction webhook processing system built with **FastAPI, PostgreSQL, SQLAlchemy, Docker, and React**.
 
 The application accepts transaction webhooks, stores transactions in PostgreSQL, and processes them asynchronously using a background worker.
 
-## Live Backend Deployment
+## Live Application
 
-- **Live API:** https://confluencr-transaction-api.onrender.com
+- **Frontend Dashboard:** https://charming-croissant-81754d.netlify.app/
+- **Live API:** https://confluencr-transaction-api.onrender.com/
 - **Swagger API Documentation:** https://confluencr-transaction-api.onrender.com/docs
 - **Health Check:** https://confluencr-transaction-api.onrender.com/
 
-The backend is deployed on Render, with Supabase PostgreSQL used for persistent storage.
+The React frontend is deployed on Netlify. The FastAPI backend and background worker run together on Render, with Supabase PostgreSQL providing persistent storage.
 
-**Note:** The Render free service may sleep after inactivity. The first request after inactivity can take longer because the service needs to wake up.
+**Note:** The Render free service may sleep after inactivity. The first request after inactivity can take longer while the service wakes up. The worker also pauses while the service is sleeping.
 
 ## Technology Stack
 
@@ -38,6 +39,7 @@ The backend is deployed on Render, with Supabase PostgreSQL used for persistent 
 - Docker Compose
 - Supabase PostgreSQL
 - Render
+- Netlify
 
 ## Key Features
 
@@ -49,6 +51,7 @@ The backend is deployed on Render, with Supabase PostgreSQL used for persistent 
 - Stores transaction records persistently in PostgreSQL.
 - Provides transaction status and transaction history APIs.
 - Includes a React dashboard to monitor transaction activity.
+- Supports transaction history, status filtering, and transaction submission.
 - Includes automated API tests using Pytest.
 
 ## Application Architecture
@@ -157,7 +160,7 @@ Open the frontend at:
 
 http://localhost:5173/
 
-The current frontend configuration connects to the local backend at `http://localhost:8000`.
+By default, the frontend connects to the local backend at `http://localhost:8000`. The API URL can be configured using the `VITE_API_BASE_URL` environment variable.
 
 ## Running Tests
 
@@ -192,19 +195,18 @@ The transaction processing delay was also verified at approximately 30 seconds.
 
 ## Deployment Notes
 
-### Live Frontend
+### Frontend
 
-The React dashboard is publicly deployed on Netlify.
+The React dashboard is deployed on Netlify.
 
-Frontend: https://charming-croissant-81754d.netlify.app/
+https://charming-croissant-81754d.netlify.app/
 
-### Live Backend
+### Backend
 
 The FastAPI backend and background worker are deployed together on Render.
 
-API: https://confluencr-transaction-api.onrender.com/
-
-API Documentation: https://confluencr-transaction-api.onrender.com/docs
+- API: https://confluencr-transaction-api.onrender.com/
+- API Documentation: https://confluencr-transaction-api.onrender.com/docs
 
 ### Database
 
@@ -213,10 +215,10 @@ Supabase PostgreSQL provides persistent transaction storage.
 ### Deployment Considerations
 
 - Netlify hosts the React frontend.
-- Render hosts the FastAPI backend and background worker.
+- Render hosts the FastAPI backend and background worker in one web service.
 - Supabase provides PostgreSQL database storage.
-- The Render free service may sleep after inactivity. Cold starts can increase API response time.
-- The background worker runs alongside the API and pauses when the Render service sleeps.
+- The Render free service may sleep after inactivity, increasing cold-start response times.
+- The background worker pauses when the Render service sleeps.
 
 ## Project Repository
 
