@@ -4,7 +4,8 @@ import "./App.css";
 
 // Local backend for development.
 // We will configure the production URL when deploying the frontend.
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 function formatDate(dateValue) {
   if (!dateValue) return "—";
@@ -119,6 +120,10 @@ useEffect(() => {
     (sum, item) => sum + Number(item.amount),
     0
   );
+
+  const processedAmount = transactions
+  .filter((item) => item.status === "PROCESSED")
+  .reduce((sum, item) => sum + Number(item.amount), 0);
 
   const filteredTransactions = transactions.filter((item) => {
     const matchesSearch =
@@ -247,7 +252,7 @@ useEffect(() => {
 
           <div className="top-actions">
             <span className="live-badge">
-              <span className="online-dot"></span> API connected locally
+              <span className="online-dot"></span> API connected
             </span>
             <button className="primary-btn" onClick={() => setShowForm(true)}>
               + New transaction
@@ -290,6 +295,15 @@ useEffect(() => {
             </div>
             <h2>₹{totalAmount.toLocaleString("en-IN")}</h2>
             <p>Combined transaction amount</p>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-top">
+              <span>Processed value</span>
+              <span className="stat-icon green">₹</span>
+            </div>
+            <h2>₹{processedAmount.toLocaleString("en-IN")}</h2>
+            <p>Successfully processed transaction value</p>
           </div>
         </section>
 
