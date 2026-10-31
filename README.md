@@ -1,295 +1,219 @@
 # Transaction Webhook Service
 
-A Python/FastAPI backend that accepts transaction webhooks quickly, persists them in PostgreSQL, and processes them asynchronously using a database-backed background worker.
+A transaction webhook processing system built with **FastAPI, PostgreSQL, SQLAlchemy, Docker, and React**.
 
-## Live Deployment
+The application accepts transaction webhooks, stores transactions in PostgreSQL, and processes them asynchronously using a background worker.
+
+## Live Backend Deployment
 
 - **Live API:** https://confluencr-transaction-api.onrender.com
-- **Swagger UI:** https://confluencr-transaction-api.onrender.com/docs
+- **Swagger API Documentation:** https://confluencr-transaction-api.onrender.com/docs
 - **Health Check:** https://confluencr-transaction-api.onrender.com/
 
-The API and background worker run together in the same Render Web Service. Supabase provides the hosted PostgreSQL database.
+The backend is deployed on Render, with Supabase PostgreSQL used for persistent storage.
 
-## Architecture
+**Note:** The Render free service may sleep after inactivity. The first request after inactivity can take longer because the service needs to wake up.
 
-- **FastAPI:** Validates and stores each webhook, then immediately returns `202 Accepted`.
-- **PostgreSQL:** Provides durable storage and a unique constraint on `transaction_id` for idempotency.
-- **Background Worker:** Claims pending transactions, simulates a 30-second processing delay, and marks transactions as `PROCESSED`.
-- **Lease Recovery:** Returns abandoned in-progress jobs to the queue after a worker crash.
-- **Docker Compose:** Runs the API, PostgreSQL, and worker as separate services locally.
-- **Render:** Hosts the API and worker together in one service for the deployed version.
-- **Supabase:** Provides managed PostgreSQL storage.
+## Technology Stack
 
-## Requirements
+### Backend
 
-- Docker Desktop / Docker Engine with Compose
-- Or Python 3.12+ and PostgreSQL 16+
+- Python 3.12+
+- FastAPI
+- SQLAlchemy
+- Pydantic
+- PostgreSQL
+- Pytest
 
-## Run with Docker
+### Frontend
+
+- React
+- Vite
+- JavaScript
+- CSS
+
+### Infrastructure
+
+- Docker
+- Docker Compose
+- Supabase PostgreSQL
+- Render
+
+## Key Features
+
+- Accepts transaction webhook requests through a REST API.
+- Returns HTTP `202 Accepted` immediately after accepting a valid transaction.
+- Processes transactions asynchronously using a background worker.
+- Simulates a 30-second transaction processing delay.
+- Prevents duplicate transaction processing using a unique transaction ID.
+- Stores transaction records persistently in PostgreSQL.
+- Provides transaction status and transaction history APIs.
+- Includes a React dashboard to monitor transaction activity.
+- Includes automated API tests using Pytest.
+
+## Application Architecture
+
+1. The client submits a transaction webhook.
+2. FastAPI validates the incoming request.
+3. The transaction is saved in PostgreSQL with a pending status.
+4. The API immediately returns `202 Accepted`.
+5. The background worker retrieves pending transactions.
+6. The worker simulates the processing delay and updates the transaction status.
+7. The frontend retrieves and displays transaction information.
+
+## API Endpoints
+
+| Method | Endpoint                            | Description                     |
+| ------ | ----------------------------------- | ------------------------------- |
+| GET    | `/`                                 | Health check                    |
+| POST   | `/v1/webhooks/transactions`         | Submit a transaction webhook    |
+| GET    | `/v1/transactions`                  | Retrieve all transactions       |
+| GET    | `/v1/transactions/{transaction_id}` | Retrieve a specific transaction |
+
+### Example Webhook Request
+
+**POST** `/v1/webhooks/transactions`
+
+```json
+{
+  "transaction_id": "txn_example001",
+  "source_account": "acc_user_789",
+  "destination_account": "acc_merchant_456",
+  "amount": 1500.0,
+  "currency": "INR"
+}
+```
+
+### Example Response
+
+```json
+{
+  "message": "Transaction accepted",
+  "transaction_id": "txn_example001",
+  "status": "PROCESSING"
+}
+```
+
+The transaction is accepted immediately and processed asynchronously.
+
+## Transaction Status
+
+| Status     | Description                                      |
+| ---------- | ------------------------------------------------ |
+| PROCESSING | Transaction is awaiting or undergoing processing |
+| PROCESSED  | Transaction processing completed successfully    |
+
+## Local Setup
+
+### Prerequisites
+
+- Python 3.12+
+- Docker Desktop
+- Node.js 18+
+- Git
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/bharathkumar35/confluencr-transaction-webhook.git
+cd confluencr-transaction-webhook
+```
+
+### 2. Configure environment variables
+
+Create a `.env` file using `.env.example` as a reference.
+
+Configure the database connection and other required environment variables.
+
+Do not commit database passwords or other secrets to GitHub.
+
+### 3. Start the backend services
+
+From the project root directory, run:
 
 ```bash
 docker compose up --build
 ```
 
-Local endpoints:
+This starts the API, PostgreSQL database, and background worker.
+
+### 4. Access the backend
 
 - API: http://localhost:8000
-- Swagger UI: http://localhost:8000/docs
-- Health: http://localhost:8000/
+- Swagger documentation: http://localhost:8000/docs
+- Health check: http://localhost:8000/
 
-Stop services:
+### 5. Start the frontend
 
-```bash
-docker compose down
-```
-
-Database data is stored in the `postgres_data` Docker volume. To remove it too, use:
+Open another terminal from the project root:
 
 ```bash
-docker compose down -v
+cd frontend
+npm install
+npm run dev
 ```
 
-## Run locally without Docker
+Open the frontend at:
 
-Create and activate a virtual environment, then install dependencies:
+http://localhost:5173/
+
+The current frontend configuration connects to the local backend at `http://localhost:8000`.
+
+## Running Tests
+
+Run the backend tests inside the API container:
 
 ```bash
-python -m venv .venv
-
-# Windows:
-.venv\Scripts\activate
-
-# macOS/Linux:
-source .venv/bin/activate
-
-pip install -r requirements.txt
+docker compose exec api python -m pytest -v
 ```
 
-Set `DATABASE_URL` to a PostgreSQL database.
+**Latest local test result:**
 
-Run the API and worker in separate terminals:
-
-Terminal 1:
-
-```bash
-uvicorn app.main:app --reload
+```text
+6 passed, 1 warning
 ```
 
-Terminal 2:
-
-```bash
-python -m app.worker
-```
-
-## API Endpoints
-
-### 1. Health Check
-
-```http
-GET /
-```
-
-Example response:
-
-```json
-{
-  "status": "HEALTHY",
-  "current_time": "2026-10-31T06:12:12+00:00"
-}
-```
-
-### 2. Receive Transaction Webhook
-
-```http
-POST /v1/webhooks/transactions
-Content-Type: application/json
-```
-
-Request:
-
-```json
-{
-  "transaction_id": "txn_abc123def456",
-  "source_account": "acc_user_789",
-  "destination_account": "acc_merchant_456",
-  "amount": 1500,
-  "currency": "INR"
-}
-```
-
-Response: `202 Accepted` with an empty body.
-
-The API does not wait for the simulated background processing.
-
-### 3. Query Transaction
-
-```http
-GET /v1/transactions/txn_abc123def456
-```
-
-The response is an array containing the transaction record.
-
-A newly accepted transaction has `PROCESSING` status. After the worker completes the simulated 30-second delay, it becomes `PROCESSED`.
-
-Example:
-
-```json
-[
-  {
-    "transaction_id": "txn_abc123def456",
-    "source_account": "acc_user_789",
-    "destination_account": "acc_merchant_456",
-    "amount": "1500.00",
-    "currency": "INR",
-    "status": "PROCESSED",
-    "created_at": "2026-10-31T06:30:22Z",
-    "processed_at": "2026-10-31T06:30:54Z"
-  }
-]
-```
-
-## Test with curl
-
-Submit a webhook:
-
-```bash
-curl -i -X POST http://localhost:8000/v1/webhooks/transactions \
-  -H "Content-Type: application/json" \
-  -d '{"transaction_id":"txn_abc123def456","source_account":"acc_user_789","destination_account":"acc_merchant_456","amount":1500,"currency":"INR"}'
-```
-
-Immediately query its status:
-
-```bash
-curl http://localhost:8000/v1/transactions/txn_abc123def456
-```
-
-Submit the exact same webhook again. It returns `202` but does not create a second transaction record or processing job.
-
-Wait approximately 30 seconds and query again:
-
-```bash
-curl http://localhost:8000/v1/transactions/txn_abc123def456
-```
-
-## Automated Tests
-
-Run:
-
-```bash
-docker compose exec api python -m pytest -q
-```
-
-The automated test suite covers:
+The tests cover:
 
 - Health check
-- Webhook acceptance
-- Duplicate webhook delivery
-- Invalid amount validation
+- Transaction webhook submission
+- Duplicate transaction handling
+- Invalid transaction validation
 - Unknown transaction lookup
+- Retrieving transaction history
 
-**Local test result:** 5 tests passed.
+## Performance Verification
 
-## Live Deployment Verification
+A warmed live API webhook request was measured at approximately **434.94 ms** in one local measurement session.
 
-The following scenarios were verified against the deployed Render API:
+This was a single observed request, not a guaranteed response time for every request. Render cold starts can take longer.
 
-| Test                                                 | Result |
-| ---------------------------------------------------- | ------ |
-| Health endpoint                                      | Passed |
-| Webhook submission returns HTTP 202                  | Passed |
-| Transaction persisted in Supabase                    | Passed |
-| Background processing after approximately 30 seconds | Passed |
-| Transaction status changes to PROCESSED              | Passed |
-| Duplicate webhook does not create another record     | Passed |
+The transaction processing delay was also verified at approximately 30 seconds.
 
-Example live transaction:
+## Deployment Notes
 
-`txn_render_final001`
+- Backend API and background worker run together in one Render web service to avoid the additional cost of a separate background worker.
+- Supabase PostgreSQL provides persistent transaction storage.
+- The Render free service can sleep after inactivity. While the service is asleep, the background worker is also paused.
+- The frontend currently runs locally and requires a production deployment and production API configuration.
 
-- First webhook response: `202 Accepted`
-- Duplicate webhook response: `202 Accepted`
-- Transaction lookup response: `200 OK`
-- Final status: `PROCESSED`
-- Number of records returned: 1
+## Project Repository
 
-## Technical Decisions
+GitHub: https://github.com/bharathkumar35/confluencr-transaction-webhook
 
-1. **FastAPI + Pydantic:** Typed request validation and generated OpenAPI/Swagger documentation.
-2. **PostgreSQL unique constraint:** Makes idempotency safe when duplicate requests arrive.
-3. **Asynchronous worker:** Keeps slow processing out of the request-response path.
-4. **Database-backed queue:** Accepted work is persisted before the API acknowledges it.
-5. **Row locking with `SKIP LOCKED`:** Allows multiple worker replicas to claim different jobs without processing the same pending row simultaneously on PostgreSQL.
-6. **Processing lease:** Abandoned processing records can be recovered after a worker crash.
-7. **UTC timestamps:** Timestamps are recorded in UTC for consistent operations.
+## Project Status
 
-## Deployment Configuration
-
-### Hosting
-
-- API and worker: Render Web Service
-- Database: Supabase PostgreSQL
-- Source code: GitHub
-
-### Render Configuration
-
-Build command:
-
-```bash
-pip install -r requirements.txt
-```
-
-Start command:
-
-```bash
-python -m app.worker & uvicorn app.main:app --host 0.0.0.0 --port $PORT
-```
-
-Both processes use the same deployed application and database configuration.
-
-Required environment variables:
-
-- `DATABASE_URL`
-- `PROCESSING_DELAY_SECONDS=30`
-- `POLL_INTERVAL_SECONDS=1`
-- `PROCESSING_LEASE_SECONDS=120`
-- `LOG_LEVEL=INFO`
-
-Keep database credentials in Render environment variables. Never commit secrets to GitHub.
-
-**Deployment note:** The Render Free Web Service may spin down when idle. During that time, background processing pauses until the service wakes up. A dedicated always-on worker is preferable for production workloads.
-
-## Production Hardening
-
-Before integrating with a real payment provider:
-
-- Verify webhook signatures and timestamps to prevent forged or replayed requests.
-- Use Alembic migrations instead of `create_all` for schema evolution.
-- Add structured logs, metrics, tracing, alerting, and rate limiting.
-- Store secrets securely and rotate credentials when necessary.
-- Define retry/backoff and a dead-letter policy for external API failures.
-- Add authentication and authorization to operational endpoints where appropriate.
-- Use managed PostgreSQL with backups and connection pooling.
-
-## Repository Checklist
-
-- [x] Implement FastAPI webhook endpoint.
-- [x] Persist transactions in PostgreSQL.
-- [x] Implement duplicate transaction prevention.
-- [x] Implement asynchronous background processing.
-- [x] Implement simulated 30-second processing delay.
-- [x] Run automated tests successfully (5 passed).
-- [x] Push source code to a public GitHub repository.
-- [x] Deploy API and worker to Render.
-- [x] Connect deployed application to Supabase PostgreSQL.
-- [x] Verify public health endpoint.
-- [x] Verify live webhook processing.
-- [x] Verify duplicate transaction prevention.
-- [ ] Measure live webhook response latency.
-- [ ] Review any additional frontend requirements in the assignment guide.
-
-## Project Links
-
-- **GitHub Repository:** https://github.com/bharathkumar35/confluencr-transaction-webhook
-- **Live API:** https://confluencr-transaction-api.onrender.com
-- **Swagger Documentation:** https://confluencr-transaction-api.onrender.com/docs
+- [x] Backend API implementation
+- [x] PostgreSQL integration
+- [x] Background transaction processing
+- [x] Duplicate transaction protection
+- [x] Docker configuration
+- [x] Automated backend tests
+- [x] Backend cloud deployment
+- [x] Live transaction processing verification
+- [x] React dashboard implementation
+- [x] Frontend integration with local backend
+- [x] Transaction history retrieval
+- [ ] Push the latest frontend and backend changes to GitHub
+- [ ] Deploy the frontend
+- [ ] Configure production frontend-to-backend integration

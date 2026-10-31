@@ -1,12 +1,14 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import Depends, FastAPI, HTTPException, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from .database import Base, engine, get_db
 from .models import Transaction
 from .schemas import TransactionResponse, WebhookRequest
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -23,9 +25,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 @app.get("/", tags=["Health"])
 def health_check():
     return {"status": "HEALTHY", "current_time": datetime.now(timezone.utc).isoformat()}
+
 
 @app.post(
     "/v1/webhooks/transactions",
@@ -51,6 +63,37 @@ def receive_transaction(payload: WebhookRequest, db: Session = Depends(get_db)):
         db.rollback()
         # A duplicate is an idempotent success: do not create another queue item.
     return Response(status_code=status.HTTP_202_ACCEPTED)
+
+
+@app.get(
+    "/v1/transactions",
+    response_model=list[TransactionResponse],
+    tags=["Transactions"],
+    summary="Get all transactions",
+)
+def get_all_transactions(db: Session = Depends(get_db)):
+    transactions = db.scalars(
+        select(Transaction).order_by(Transaction.created_at.desc())
+    ).all()
+
+    return [
+        {
+            "transaction_id": transaction.transaction_id,
+            "source_account": transaction.source_account,
+            "destination_account": transaction.destination_account,
+            "amount": transaction.amount,
+            "currency": transaction.currency,
+            "status": (
+                "PROCESSING"
+                if transaction.status == "PENDING"
+                else transaction.status
+            ),
+            "created_at": transaction.created_at,
+            "processed_at": transaction.processed_at,
+        }
+        for transaction in transactions
+    ]
+
 
 @app.get(
     "/v1/transactions/{transaction_id}",
